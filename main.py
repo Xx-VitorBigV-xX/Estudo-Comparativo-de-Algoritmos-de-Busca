@@ -1,7 +1,10 @@
 import time
 import random
+import matplotlib.pyplot as plt
+import pandas as pd
+from tabulate import tabulate
 
-# Implementação da busca sequencial
+# Busca Sequencial
 def busca_sequencial(lista, alvo):
     visitados = 0
     for i, item in enumerate(lista):
@@ -10,7 +13,7 @@ def busca_sequencial(lista, alvo):
             return i, visitados
     return -1, visitados
 
-# Implementação da busca binária
+# Busca Binária
 def busca_binaria(lista, alvo):
     inicio = 0
     fim = len(lista) - 1
@@ -26,32 +29,70 @@ def busca_binaria(lista, alvo):
             fim = meio - 1
     return -1, visitados
 
-# Função para medir tempo e posições visitadas
-def testar_buscas(tamanho, caso):
-    lista = list(range(tamanho))
+# Coleta de dados
+tamanhos = [1000, 10000, 100000]
+dados = []
 
-    if caso == "medio":
-        alvo = random.choice(lista)
-    elif caso == "pior":
-        alvo = -1  # elemento que não existe
+for tamanho in tamanhos:
+    for caso in ['medio', 'pior']:
+        lista = list(range(tamanho))
+        alvo = random.choice(lista) if caso == 'medio' else -1
 
-    print(f"\n--- Tamanho: {tamanho}, Caso: {caso.upper()} ---")
+        # Sequencial
+        t0 = time.perf_counter()
+        _, vis_seq = busca_sequencial(lista, alvo)
+        t1 = time.perf_counter()
+        tempo_seq = t1 - t0
 
-    # Busca Sequencial
-    t0 = time.perf_counter()
-    _, visitados_seq = busca_sequencial(lista, alvo)
-    t1 = time.perf_counter()
-    tempo_seq = t1 - t0
-    print(f"Sequencial: Tempo = {tempo_seq:.6f}s, Visitados = {visitados_seq}")
+        # Binária
+        t0 = time.perf_counter()
+        _, vis_bin = busca_binaria(lista, alvo)
+        t1 = time.perf_counter()
+        tempo_bin = t1 - t0
 
-    # Busca Binária
-    t0 = time.perf_counter()
-    _, visitados_bin = busca_binaria(lista, alvo)
-    t1 = time.perf_counter()
-    tempo_bin = t1 - t0
-    print(f"Binária:    Tempo = {tempo_bin:.6f}s, Visitados = {visitados_bin}")
+        dados.append({
+            'Tamanho': tamanho,
+            'Caso': caso,
+            'Tempo Sequencial': tempo_seq,
+            'Visitados Sequencial': vis_seq,
+            'Tempo Binária': tempo_bin,
+            'Visitados Binária': vis_bin
+        })
 
-# Testar para diferentes tamanhos e casos
-for tamanho in [1000, 10000, 100000]:
-    testar_buscas(tamanho, "medio")
-    testar_buscas(tamanho, "pior")
+# DataFrame
+df = pd.DataFrame(dados)
+
+# ===== TABELA =====
+print("\n===== TABELA DE RESULTADOS =====\n")
+pivotada = df.pivot(index='Tamanho', columns='Caso')[
+    ['Tempo Sequencial', 'Visitados Sequencial', 'Tempo Binária', 'Visitados Binária']
+]
+print(tabulate(pivotada, headers='keys', tablefmt='fancy_grid', showindex=True, floatfmt=".6f"))
+
+# ===== GRÁFICOS DE LINHA =====
+fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+casos = ['medio', 'pior']
+
+for i, caso in enumerate(casos):
+    df_caso = df[df['Caso'] == caso]
+
+    # Tempo
+    axs[0, i].plot(df_caso['Tamanho'], df_caso['Tempo Sequencial'], marker='o', label='Sequencial')
+    axs[0, i].plot(df_caso['Tamanho'], df_caso['Tempo Binária'], marker='s', label='Binária')
+    axs[0, i].set_title(f'Tempo de Execução - Caso {caso.title()}')
+    axs[0, i].set_xlabel('Tamanho da Entrada')
+    axs[0, i].set_ylabel('Tempo (s)')
+    axs[0, i].legend()
+    axs[0, i].grid(True)
+
+    # Visitados
+    axs[1, i].plot(df_caso['Tamanho'], df_caso['Visitados Sequencial'], marker='o', label='Sequencial')
+    axs[1, i].plot(df_caso['Tamanho'], df_caso['Visitados Binária'], marker='s', label='Binária')
+    axs[1, i].set_title(f'Comparações - Caso {caso.title()}')
+    axs[1, i].set_xlabel('Tamanho da Entrada')
+    axs[1, i].set_ylabel('Posições Visitadas')
+    axs[1, i].legend()
+    axs[1, i].grid(True)
+
+plt.tight_layout()
+plt.show()
